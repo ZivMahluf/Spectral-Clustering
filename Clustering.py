@@ -21,7 +21,7 @@ def circles_example():
                          4 * np.sin(t) + 0.1 * np.random.randn(length)])
     circles = np.concatenate((circle1, circle2, circle3, circle4), axis=1)
 
-    plt.plot(circles[0,:], circles[1,:], '.k')
+    plt.plot(circles[0, :], circles[1, :], '.k')
     plt.show()
 
 
@@ -40,8 +40,8 @@ def apml_pic_example(path='APML_pic.pickle'):
 
 
 def microarray_exploration(data_path='microarray_data.pickle',
-                            genes_path='microarray_genes.pickle',
-                            conds_path='microarray_conds.pickle'):
+                           genes_path='microarray_genes.pickle',
+                           conds_path='microarray_conds.pickle'):
     """
     an example function for loading and plotting the microarray data.
     Specific explanations of the data set are written in comments inside the
@@ -74,7 +74,7 @@ def microarray_exploration(data_path='microarray_data.pickle',
     # look at two conditions and their correlation:
     plt.figure()
     plt.scatter(data[:, 27], data[:, 29])
-    plt.plot([-5,5],[-5,5],'r')
+    plt.plot([-5, 5], [-5, 5], 'r')
     plt.show()
 
     # see correlations between conds:
@@ -91,15 +91,23 @@ def microarray_exploration(data_path='microarray_data.pickle',
     plt.show()
 
 
-def euclid(X, Y):
+def euclid(X, Y):  # TODO: vectorize?
     """
     return the pair-wise euclidean distance between two data matrices.
     :param X: NxD matrix.
     :param Y: MxD matrix.
     :return: NxM euclidean distance matrix.
     """
+    result = np.ndarray(shape=(len(X), len(Y)))
+    row = 0
+    for x in X:
+        col = 0
+        for y in Y:
+            result[row][col] = np.linalg.norm(x - y)
+            col += 1
+        row += 1
 
-    # TODO: YOUR CODE HERE
+    return result
 
 
 def euclidean_centroid(X):
@@ -108,8 +116,7 @@ def euclidean_centroid(X):
     :param X: a sub-matrix of the NxD data matrix that defines a cluster.
     :return: the centroid of the cluster.
     """
-
-    # TODO: YOUR CODE HERE
+    return X.mean(axis=0)
 
 
 def kmeans_pp_init(X, k, metric):
@@ -120,8 +127,15 @@ def kmeans_pp_init(X, k, metric):
     :param metric: a metric function like specified in the kmeans documentation.
     :return: kxD matrix with rows containing the centroids.
     """
-
-    # TODO: YOUR CODE HERE
+    # pick first centroid at random
+    centroids = np.ndarray(shape=(k, len(X[0])))
+    centroids[0] = X[np.random.randint(len(X), size=1)]
+    for i in range(1, k):
+        # calculate dist matrix for all remaining
+        min_distances = np.min(metric(X, centroids), axis=1)
+        normalized_rand_probs = (min_distances ** 2) / np.sum(min_distances ** 2)
+        centroids[i] = X[np.random.choice(len(X), size=1, p=normalized_rand_probs)]
+    return centroids
 
 
 def kmeans(X, k, iterations=10, metric=euclid, center=euclidean_centroid, init=kmeans_pp_init):
@@ -142,8 +156,16 @@ def kmeans(X, k, iterations=10, metric=euclid, center=euclidean_centroid, init=k
     clustering - A N-dimensional vector with indices from 0 to k-1, defining the clusters.
     centroids - The kxD centroid matrix.
     """
-
-    # TODO: YOUR CODE HERE
+    centroids = init(X, k, metric)
+    clustering = np.zeros(shape=len(X))
+    for i in range(iterations):
+        # find the min distance of each sample from all centroids -- which sample belong to which centroid
+        # recalculate centroids
+        clustering = np.argmin(euclid(X, centroids), axis=1)
+        for cluster in range(k):  # update
+            if X[clustering == cluster].any():  # if set is empty - don't update
+                centroids[cluster] = euclidean_centroid(X[clustering == cluster])
+    return clustering, centroids, None
 
 
 def gaussian_kernel(X, sigma):
@@ -182,5 +204,5 @@ def spectral(X, k, similarity_param, similarity=gaussian_kernel):
 
 
 if __name__ == '__main__':
-
-    # TODO: YOUR CODE HERE
+    X = np.array([[1, 1], [5, 1], [1, 10], [5, 10]])
+    kmeans(X, 2)
