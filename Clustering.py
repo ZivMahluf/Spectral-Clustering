@@ -186,8 +186,20 @@ def mnn(X, m):
     :param m: The number of nearest neighbors.
     :return: NxN similarity matrix.
     """
+    # for (xi, xj) -- [xi, xj] = 1 if xj in xi's m nearest neighbors
+    similarity_matrix = np.zeros_like(X)
+    # find m nearest neighbors for each sample
+    nearest_neighbors = np.argpartition(X, m, axis=1)
+    idx = 0
+    for neighbors in nearest_neighbors:
+        similarity_matrix[idx][neighbors[:m]] = 1
+        similarity_matrix[neighbors[:m]][:, idx] = 1
+        idx += 1
+    return similarity_matrix
 
-    # TODO: YOUR CODE HERE
+
+def get_k_best_eigenvectors(w, v):
+    pass
 
 
 def spectral(X, k, similarity_param, similarity=gaussian_kernel):
@@ -199,10 +211,28 @@ def spectral(X, k, similarity_param, similarity=gaussian_kernel):
     :param similarity: The similarity transformation of the data.
     :return: clustering, as in the kmeans implementation.
     """
-
-    # TODO: YOUR CODE HERE
+    # calculate dist matrix
+    dist_matrix = euclid(X, X)
+    # get similarity matrix
+    similarity_matrix = similarity(dist_matrix, similarity_param)
+    # get diagonal degree matrix
+    diagonal_matrix = np.diag(np.sum(similarity_matrix, axis=1))
+    # laplacian matrix by given formula
+    inv_diagonal = diagonal_matrix ** -0.5
+    inv_diagonal[inv_diagonal == np.inf] = 0
+    laplacian_matrix = np.identity(len(X)) - inv_diagonal @ similarity_matrix @ inv_diagonal
+    # get lowest eigen vectors
+    w, v = np.linalg.eig(laplacian_matrix)
+    eigen_vectors = v[:, np.argpartition(w, k)[:k]]
+    normalized_eigen_vectors = eigen_vectors / np.sum(eigen_vectors, axis=1)[:, None]
+    return normalized_eigen_vectors
 
 
 if __name__ == '__main__':
-    X = np.array([[1, 1], [5, 1], [1, 10], [5, 10]])
-    kmeans(X, 2)
+    points = [[1, 8], [1, 9], [2, 10], [9, 2], [9, 3], [8, 4], [15, 20], [15, 21], [14, 19]]
+    X = np.array(points)
+    normalized_eigen_vectors = spectral(X, 3, similarity_param=3, similarity=mnn)
+    # for vec in normalized_eigen_vectors:
+    #     print(vec)
+    clustering = kmeans(normalized_eigen_vectors, 3)
+    print(clustering)
