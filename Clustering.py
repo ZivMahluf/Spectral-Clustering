@@ -175,8 +175,7 @@ def gaussian_kernel(X, sigma):
     :param sigma: The width of the Gaussian in the heat kernel.
     :return: NxN similarity matrix.
     """
-
-    # TODO: YOUR CODE HERE
+    return np.power(np.e, - (X ** 2) / (2 * (sigma ** 2)))
 
 
 def mnn(X, m):
@@ -196,10 +195,6 @@ def mnn(X, m):
         similarity_matrix[neighbors[:m]][:, idx] = 1
         idx += 1
     return similarity_matrix
-
-
-def get_k_best_eigenvectors(w, v):
-    pass
 
 
 def spectral(X, k, similarity_param, similarity=gaussian_kernel):
@@ -228,11 +223,78 @@ def spectral(X, k, similarity_param, similarity=gaussian_kernel):
     return normalized_eigen_vectors
 
 
+# -------------- Added functions --------------
+SIGMA_PERCENTILE = 7  # location 8 in array
+
+
+def choose_sigma(dist_matrix):
+    # get and plot histogram
+    hist, bin_edges = np.histogram(dist_matrix)
+    plt.hist(hist)
+    plt.show()
+    sigma = bin_edges[SIGMA_PERCENTILE]
+    return sigma
+
+
+def silhouette(X, k, clustering):
+    """
+    return the silhouette score
+    :param k: amount of clusters
+    :param clustering: the clustering (size samples)
+    :return: the silhouette score
+    """
+    # ** divide samples into 2 groups
+    # for each sample:
+    # calculate ai
+    #           find the cluster of this sample
+    #           find all samples that are in the same cluster as this
+    #           calculate distances by accessing dist_matrix
+    # calculate bi
+    #           find distance of this sample to all other samples that are not in it's cluster, by their cluster
+    #           find min avg -- that's your b
+    # sum += (....)
+    # calculate the avg distance of the sample from all other samples inside its own cluster
+    dist_matrix = euclid(X, X)
+    silhouette_scores = np.zeros(shape=len(X))
+    for sample_index, sample in enumerate(X):
+        sample_cluster_index = clustering[sample_index]
+        samples_indices_in_same_cluster = np.where(clustering == sample_cluster_index)[0]
+        # calculate a
+        if len(samples_indices_in_same_cluster) == 1:
+            a = 0  # distance from itself is 0
+        else:
+            a = np.sum(dist_matrix[sample_index][samples_indices_in_same_cluster]) / (
+                    len(samples_indices_in_same_cluster) - 1)
+        # find distance from all other clusters
+        min_b = np.inf
+        b = 0
+        for c in range(k):
+            if c != sample_cluster_index:  # for all other clusters
+                indices_of_samples_in_other_cluster = np.where(clustering == c)[0]
+                b = np.mean(dist_matrix[sample_index][indices_of_samples_in_other_cluster])
+                if b < min_b:
+                    min_b = b
+        silhouette_scores[sample_index] = (b - a) / np.fmax(a, b)
+    return np.mean(silhouette_scores)
+
+
 if __name__ == '__main__':
-    points = [[1, 8], [1, 9], [2, 10], [9, 2], [9, 3], [8, 4], [15, 20], [15, 21], [14, 19]]
+    points = [[1, 8], [1, 9], [2, 10], [9, 2], [9, 3], [8, 4], [15, 20], [15, 21], [14, 19], [9, 10]]
     X = np.array(points)
-    normalized_eigen_vectors = spectral(X, 3, similarity_param=3, similarity=mnn)
-    # for vec in normalized_eigen_vectors:
-    #     print(vec)
-    clustering = kmeans(normalized_eigen_vectors, 3)
-    print(clustering)
+    clu2 = kmeans(X, 2)[0]
+    clu3 = kmeans(X, 3)[0]
+    clu4 = kmeans(X, 4)[0]
+    clu5 = kmeans(X, 5)[0]
+    sil2 = silhouette(X, 2, clu2)
+    sil3 = silhouette(X, 3, clu3)
+    sil4 = silhouette(X, 4, clu4)
+    sil5 = silhouette(X, 5, clu5)
+    print(sil2)
+    print(sil3)
+    print(sil4)
+    print(sil5)
+    # sigma = choose_sigma(euclid(X, X))
+    # print(sigma)
+    # normalized_eigen_vectors = spectral(X, 3, similarity_param=2, similarity=gaussian_kernel)
+    # clustering = kmeans(normalized_eigen_vectors, 3)
+    # print(clustering)
